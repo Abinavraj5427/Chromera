@@ -8,16 +8,17 @@ async function getUniqueUrl(){
     return axios.get('https://random-word-api.herokuapp.com/word?number=1')
 }
 //get data
-router.get('/data', (req, res, next) => {
-    Data.find({'url': req.body.url},function(err, data){
-        //tech compensation calculation
-        let compensation = data.base_salary * (1 + data.percent_raise) * data.target_bonus + data.four_yr_RSU * data.vest_percent/4;
-        res.json({data: data, compensation: compensation});
+router.get('/data/:url', (req, res, next) => {
+    Data.find({'url': req.params.url},function(err, data){
+        if(err)res.send("error")
+        else if(data.length == 0)res.send("nothing found");
+        else res.json(data[0]);
     });
 });
 
 //add data
 router.post('/data', (req, res, next) => {
+    // console.log(req.body);
     getUniqueUrl().then((response) => {
         let word = response.data[0];
         let newData = new Data({
@@ -32,9 +33,7 @@ router.post('/data', (req, res, next) => {
         newData.save((err, data) => {
             if(err)res.json({msg: 'Failed to add data', data: data});
             else{
-                //tech compensation calculation
-                let compensation = data.base_salary * (1 + data.percent_raise) * data.target_bonus + data.four_yr_RSU * data.vest_percent/4;
-                res.json({msg: 'Data added successfully', data: data, compensation: compensation});
+                res.json({msg: 'Data added successfully', data: data});
             }
         });
     }).catch(err => res.json({msg: 'Could not generate URL', err: err}))
@@ -50,10 +49,11 @@ router.delete('/data', (req, res, next) => {
 
 //update data
 router.put('/data', (req, res, next) => {
+    // console.log(req);
     Data.findOne({url: req.body.url}, (err, foundObject) => {
-        if(err) res.send("Successful find");
+        if(err) res.send("Could not find find");
         else{
-            if(!foundObject) res.send("Could not find object");
+            if(!foundObject) res.send("Object nonexistant");
             else {
                 foundObject.base_salary = req.body.base_salary;
                 foundObject.percent_raise = req.body.percent_raise;
@@ -64,9 +64,7 @@ router.put('/data', (req, res, next) => {
                 foundObject.save(function(error, updatedObject){
                     if(error) res.send("Error updating the data");
                     else{
-                        //tech compensation calculation
-                        let compensation = updatedObject.base_salary * (1 + updatedObject.percent_raise) * updatedObject.target_bonus + updatedObject.four_yr_RSU * updatedObject.vest_percent/4;
-                        res.json({data: updatedObject, compensation: compensation});
+                        res.json({data: updatedObject});
                     }
                 })
             }
@@ -75,7 +73,19 @@ router.put('/data', (req, res, next) => {
 });
 
 
-
+router.get('/recentData', (req, res, next) => {
+    Data.find({})
+    .sort({'id': -1})
+    .limit(10)
+    .exec(function(err, posts) {
+         // `posts` will be of length 10
+         var output = [];
+         posts.map(obj => {
+            output.push({base_salary: obj.base_salary, four_yr_RSU: obj.four_yr_RSU });
+         })
+         res.json(output);
+    });
+});
 
 
 module.exports = router;
